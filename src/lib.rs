@@ -1,6 +1,9 @@
 use async_std::net::TcpListener;
 use async_std::net::TcpStream;
 use async_std::prelude::*;
+use std::convert::{TryFrom, TryInto};
+
+use packet::{Message, Packet, PacketType};
 
 mod packet;
 
@@ -17,9 +20,15 @@ pub async fn server(port: u16) -> Result<()> {
 
     while let Some(stream) = incoming.next().await {
         let mut stream = stream?;
-        // handle stream
         println!("new stream from: {}", stream.peer_addr()?.ip());
-        stream.write_all(b"hello world").await?;
+        // handle stream
+
+        // testing
+        let packet = Packet::read(&mut stream).await?;
+        let message = match packet.packet_type {
+            PacketType::Message => Message::try_from(packet),
+        };
+        println!("{:?}", message);
     }
 
     Ok(())
@@ -32,6 +41,11 @@ pub async fn client(port: u16) -> Result<()> {
         stream.peer_addr()?.ip(),
         port
     );
+
+    // testing stuffs
+    let message: Packet =
+        Message::new("Isabelle".to_owned(), "Hello Server".to_owned()).try_into()?;
+    message.write(&mut stream).await?;
 
     /*let mut buf = vec![0u8; 1024];
     stream.read(&mut buf).await?;
