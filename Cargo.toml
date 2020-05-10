@@ -1,0 +1,12 @@
+[package]
+name = "msg"
+version = "0.1.0"
+authors = ["Isabelle L. <me@izzabelle.dev>"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.3.14"
+async-std = { version = "1.5.0",features = ["attributes"] }
+chrono = "0.4.11"
+serde = { version = "1.0.107", features = ["derive"] }
+serde_json = "1.0.52"
