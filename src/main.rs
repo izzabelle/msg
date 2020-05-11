@@ -1,5 +1,7 @@
+// namespacing
 use structopt::StructOpt;
 
+// cli options
 #[derive(StructOpt)]
 #[structopt(name = "msg", about = "I have no idea what i'm doing but this is async")]
 struct Opt {
