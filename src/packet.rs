@@ -1,10 +1,14 @@
 // namespacing
-use crate::{Error, Result};
+use crate::Result;
 use async_std::net::TcpStream;
 use async_std::prelude::*;
-use chrono::prelude::*;
-use serde::{Deserialize, Serialize};
+use futures_util::io::ReadHalf;
 use std::convert::TryInto;
+
+mod join;
+pub use join::Join;
+mod message;
+pub use message::Message;
 
 /// structured [packet type byte][four bytes of packet length][contents of packet]
 pub struct NetworkPacket(Vec<u8>);
@@ -25,6 +29,11 @@ impl std::convert::Into<NetworkPacket> for Packet {
     }
 }
 
+pub trait Sendable {
+    fn to_packet(self) -> Packet;
+    fn from_packet(packet: Packet) -> Self;
+}
+
 /// contains data to be turned into a network packet or into a more specific packet
 pub struct Packet {
     pub packet_type: PacketType,
@@ -38,9 +47,13 @@ impl Packet {
     }
 
     /// read a packet from a tcpstream
-    pub async fn read(stream: &mut TcpStream) -> Result<Packet> {
+    pub async fn read(stream: &mut ReadHalf<TcpStream>) -> Result<Option<Packet>> {
         let mut info_buf = [0u8; 5];
-        stream.read(&mut info_buf).await?;
+        let check = stream.read(&mut info_buf).await?;
+        if check == 0 {
+            return Ok(None);
+        }
+
         let packet_type = PacketType::from_u8(info_buf[0]).unwrap();
 
         let length = u32::from_le_bytes(info_buf[1..5].try_into().unwrap()) as usize;
@@ -48,13 +61,13 @@ impl Packet {
         let mut contents: Vec<u8> = vec![0; length];
         stream.read(&mut contents).await?;
 
-        Ok(Packet::new(packet_type, contents))
+        Ok(Some(Packet::new(packet_type, contents)))
     }
 
     /// write a packet to the tcpstream
     pub async fn write(self, stream: &mut TcpStream) -> Result<()> {
         let network_packet: NetworkPacket = self.into();
-        let _ = stream.write(&network_packet.0).await?;
+        stream.write(&network_packet.0).await?;
         Ok(())
     }
 }
@@ -63,6 +76,7 @@ impl Packet {
 #[repr(u8)]
 pub enum PacketType {
     Message = 0,
+    Join = 1,
 }
 
 impl PacketType {
@@ -72,41 +86,5 @@ impl PacketType {
             0 => Some(Self::Message),
             _ => None,
         }
-    }
-}
-
-/// a Message
-#[derive(Deserialize, Serialize, Debug)]
-pub struct Message {
-    user: String,
-    contents: String,
-    timestamp: i64,
-}
-
-impl Message {
-    /// create a new message
-    pub fn new(user: String, contents: String) -> Self {
-        let timestamp = Utc::now().timestamp();
-        Self { user, contents, timestamp }
-    }
-}
-
-impl std::convert::TryFrom<Packet> for Message {
-    type Error = Error;
-
-    fn try_from(packet: Packet) -> Result<Self> {
-        let packet_contents = &String::from_utf8(packet.packet_contents)?;
-        let message: Message = serde_json::from_str(packet_contents)?;
-        Ok(message)
-    }
-}
-
-impl std::convert::TryInto<Packet> for Message {
-    type Error = Error;
-
-    fn try_into(self) -> Result<Packet> {
-        let packet_contents: Vec<u8> = serde_json::to_string(&self)?.into_bytes();
-        let packet_type = PacketType::Message;
-        Ok(Packet { packet_type, packet_contents })
     }
 }

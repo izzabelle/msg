@@ -14,5 +14,5 @@ pub async fn client(port: u16) -> Result<()> {
         Message::new("Isabelle".to_owned(), "Hello Server".to_owned()).try_into()?;
     message.write(&mut stream).await?;
 
-    Ok(())
+    loop {}
 }
