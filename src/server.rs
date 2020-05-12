@@ -1,17 +1,17 @@
 // namespacing
 use crate::{
-    packet::{Join, Message, Packet, PacketType},
+    packet::{Join, Message, Packet, PacketType, Sendable},
     Result,
 };
 use async_std::{
     net::{TcpListener, TcpStream},
-    prelude::*,
     task,
 };
 use futures::io::{ReadHalf, WriteHalf};
 use futures_util::io::AsyncReadExt;
+use futures_util::stream::StreamExt;
 use lazy_static::lazy_static;
-use std::{collections::HashMap, convert::TryFrom, sync::Mutex};
+use std::{collections::HashMap, sync::Mutex};
 use uuid::Uuid;
 
 lazy_static! {
@@ -60,11 +60,11 @@ async fn handle_stream(mut stream: ReadHalf<TcpStream>, stream_id: Uuid) -> Resu
 
         match packet.packet_type {
             PacketType::Message => {
-                let msg = Message::try_from(packet)?;
+                let msg = Message::from_packet(packet)?;
                 println!("{:?}", msg);
             }
             PacketType::Join => {
-                let join = Join::try_from(packet)?;
+                let join = Join::from_packet(packet)?;
                 println!("{:?}", join);
             }
         }
@@ -78,8 +78,17 @@ async fn handle_stream(mut stream: ReadHalf<TcpStream>, stream_id: Uuid) -> Resu
     Ok(())
 }
 
-/*
-async fn relay_packet() -> Result<()> {
-    let locked_stream = WRITE_STREAMS.lock().
+async fn relay_packet<T: Clone + Sendable>(packet: T) -> Result<()> {
+    let mut locked_write_streams = WRITE_STREAMS.lock().expect("failed to aqcuire lock");
+    let stream = futures::stream::iter(locked_write_streams.iter_mut());
 
-}*/
+    let packet = &packet;
+    stream
+        .for_each_concurrent(None, |(_, mut stream)| async move {
+            let packet = packet.clone().to_packet().expect("failed to convert to packet");
+            // in case any of the writes fail just ignore them
+            let _ = packet.write(&mut stream);
+        })
+        .await;
+    Ok(())
+}

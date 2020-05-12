@@ -2,7 +2,7 @@
 use crate::Result;
 use async_std::net::TcpStream;
 use async_std::prelude::*;
-use futures_util::io::ReadHalf;
+use futures_util::io::{ReadHalf, WriteHalf};
 use std::convert::TryInto;
 
 mod join;
@@ -29,12 +29,13 @@ impl std::convert::Into<NetworkPacket> for Packet {
     }
 }
 
-pub trait Sendable {
-    fn to_packet(self) -> Packet;
-    fn from_packet(packet: Packet) -> Self;
+pub trait Sendable: Sized {
+    fn to_packet(self) -> Result<Packet>;
+    fn from_packet(packet: Packet) -> Result<Self>;
 }
 
 /// contains data to be turned into a network packet or into a more specific packet
+#[derive(Debug, Clone)]
 pub struct Packet {
     pub packet_type: PacketType,
     packet_contents: Vec<u8>,
@@ -65,7 +66,7 @@ impl Packet {
     }
 
     /// write a packet to the tcpstream
-    pub async fn write(self, stream: &mut TcpStream) -> Result<()> {
+    pub async fn write(self, stream: &mut WriteHalf<TcpStream>) -> Result<()> {
         let network_packet: NetworkPacket = self.into();
         stream.write(&network_packet.0).await?;
         Ok(())
@@ -73,6 +74,7 @@ impl Packet {
 }
 
 /// represent the specific packet type
+#[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum PacketType {
     Message = 0,
@@ -84,6 +86,7 @@ impl PacketType {
     pub fn from_u8(packet_type: u8) -> Option<Self> {
         match packet_type {
             0 => Some(Self::Message),
+            1 => Some(Self::Join),
             _ => None,
         }
     }

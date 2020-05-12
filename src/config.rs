@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct ClientConfig {
-    user: String,
+    pub user: String,
 }
 
 impl ClientConfig {
