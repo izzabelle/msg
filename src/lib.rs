@@ -1,7 +1,6 @@
 // modules
 mod client;
 mod config;
-#[allow(dead_code)]
 mod packet;
 mod server;
 

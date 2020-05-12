@@ -8,8 +8,7 @@ use async_std::{
     task,
 };
 use futures::io::{ReadHalf, WriteHalf};
-use futures_util::io::AsyncReadExt;
-use futures_util::stream::StreamExt;
+use futures_util::{io::AsyncReadExt, stream::StreamExt};
 use lazy_static::lazy_static;
 use std::{collections::HashMap, sync::Mutex};
 use uuid::Uuid;
@@ -62,10 +61,12 @@ async fn handle_stream(mut stream: ReadHalf<TcpStream>, stream_id: Uuid) -> Resu
             PacketType::Message => {
                 let msg = Message::from_packet(packet)?;
                 println!("{:?}", msg);
+                task::spawn(relay_packet(msg));
             }
             PacketType::Join => {
                 let join = Join::from_packet(packet)?;
                 println!("{:?}", join);
+                task::spawn(relay_packet(join));
             }
         }
 
@@ -83,12 +84,10 @@ async fn relay_packet<T: Clone + Sendable>(packet: T) -> Result<()> {
     let stream = futures::stream::iter(locked_write_streams.iter_mut());
 
     let packet = &packet;
-    stream
-        .for_each_concurrent(None, |(_, mut stream)| async move {
-            let packet = packet.clone().to_packet().expect("failed to convert to packet");
-            // in case any of the writes fail just ignore them
-            let _ = packet.write(&mut stream);
-        })
-        .await;
+    stream.for_each_concurrent(None, |(_, mut stream)| async move {
+        let packet = packet.clone().to_packet().expect("failed to convert to packet");
+        // in case any of the writes fail just ignore them
+        let _ = packet.write(&mut stream);
+    });
     Ok(())
 }

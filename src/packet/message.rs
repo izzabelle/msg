@@ -5,7 +5,7 @@ use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 
 /// a Message
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Message {
     user: String,
     contents: String,

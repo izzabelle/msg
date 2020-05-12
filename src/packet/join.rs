@@ -3,7 +3,7 @@ use crate::Result;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Join {
     user: String,
     timestamp: i64,
