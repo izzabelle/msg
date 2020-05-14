@@ -1,7 +1,6 @@
 // modules
 mod client;
 mod config;
-mod packet;
 mod server;
 
 // re-exports
