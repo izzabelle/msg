@@ -18,8 +18,15 @@ lazy_static! {
 
 /// wraps the server
 pub async fn server(port: u16) -> Result<()> {
+    let asym_keys = crate::AsymmetricKeys::generate();
     let listener = TcpListener::bind(format!("127.0.0.1:{}", &port)).await?;
-    println!("online as server at: {}:{}", listener.local_addr()?.ip(), port);
+
+    println!(
+        "online as server at: {}:{}",
+        listener.local_addr()?.ip(),
+        port
+    );
+
     let mut incoming = listener.incoming();
 
     while let Some(stream) = incoming.next().await {
@@ -31,28 +38,37 @@ pub async fn server(port: u16) -> Result<()> {
         let (read, write) = stream.split();
         let stream_id = Uuid::new_v4();
 
-        WRITE_STREAMS.lock().expect("could not aqcuire lock").insert(stream_id.clone(), write);
+        WRITE_STREAMS
+            .lock()
+            .expect("could not aqcuire lock")
+            .insert(stream_id.clone(), write);
+
         task::spawn(handle_stream(read, stream_id));
     }
 
     Ok(())
 }
 
-async fn handle_stream(mut stream: ReadHalf<TcpStream>, _stream_id: Uuid) -> Result<()> {
+async fn handle_stream(mut stream: ReadHalf<TcpStream>, stream_id: Uuid) -> Result<()> {
     loop {
         let packet = ilmp::read(&mut stream).await?;
         if let Some(packet) = packet {
             let res = match packet.kind {
                 ilmp::PacketKind::Message => ilmp::Message::from_packet(packet),
+                _ => unimplemented!(),
             };
             println!("{:?}", res);
+        } else {
+            // if no packet was received the stream is closed
+            break;
         }
     }
-    /*    println!("disconnecting");
-
-    WRITE_STREAMS.lock().expect("failed to aqcuire lock").remove(&stream_id);
-
-    Ok(())*/
+    println!("stream disconnected");
+    WRITE_STREAMS
+        .lock()
+        .expect("failed to aqcuire lock")
+        .remove(&stream_id);
+    Ok(())
 }
 
 /*async fn relay_packet<T: Clone + Sendable>(packet: T) -> Result<()> {
