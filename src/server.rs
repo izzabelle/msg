@@ -21,11 +21,7 @@ pub async fn server(port: u16) -> Result<()> {
     let asym_keys = crate::AsymmetricKeys::generate();
     let listener = TcpListener::bind(format!("127.0.0.1:{}", &port)).await?;
 
-    println!(
-        "online as server at: {}:{}",
-        listener.local_addr()?.ip(),
-        port
-    );
+    println!("online as server at: {}:{}", listener.local_addr()?.ip(), port);
 
     let mut incoming = listener.incoming();
 
@@ -38,10 +34,7 @@ pub async fn server(port: u16) -> Result<()> {
         let (read, write) = stream.split();
         let stream_id = Uuid::new_v4();
 
-        WRITE_STREAMS
-            .lock()
-            .expect("could not aqcuire lock")
-            .insert(stream_id.clone(), write);
+        WRITE_STREAMS.lock().expect("could not aqcuire lock").insert(stream_id.clone(), write);
 
         task::spawn(handle_stream(read, stream_id));
     }
@@ -55,7 +48,7 @@ async fn handle_stream(mut stream: ReadHalf<TcpStream>, stream_id: Uuid) -> Resu
         if let Some(packet) = packet {
             let res = match packet.kind {
                 ilmp::PacketKind::Message => ilmp::Message::from_packet(packet),
-                _ => unimplemented!(),
+                _ => panic!("bad packet"),
             };
             println!("{:?}", res);
         } else {
@@ -64,10 +57,7 @@ async fn handle_stream(mut stream: ReadHalf<TcpStream>, stream_id: Uuid) -> Resu
         }
     }
     println!("stream disconnected");
-    WRITE_STREAMS
-        .lock()
-        .expect("failed to aqcuire lock")
-        .remove(&stream_id);
+    WRITE_STREAMS.lock().expect("failed to aqcuire lock").remove(&stream_id);
     Ok(())
 }
 
