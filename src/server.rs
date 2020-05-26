@@ -18,7 +18,6 @@ lazy_static! {
 
 /// wraps the server
 pub async fn server(port: u16) -> Result<()> {
-    let asym_keys = crate::AsymmetricKeys::generate();
     let listener = TcpListener::bind(format!("127.0.0.1:{}", &port)).await?;
 
     println!("online as server at: {}:{}", listener.local_addr()?.ip(), port);
@@ -31,11 +30,12 @@ pub async fn server(port: u16) -> Result<()> {
 
         println!("new stream from: {}", &stream_addr);
 
-        let (read, write) = stream.split();
+        let (mut read, mut write) = stream.split();
         let stream_id = Uuid::new_v4();
+        let key = crate::initialize_connection(&mut read, &mut write).await?;
+        println!("{:?}", key);
 
         WRITE_STREAMS.lock().expect("could not aqcuire lock").insert(stream_id.clone(), write);
-
         task::spawn(handle_stream(read, stream_id));
     }
 
