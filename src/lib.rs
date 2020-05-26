@@ -42,7 +42,7 @@ pub async fn initialize_connection(
         agreement::EphemeralPrivateKey::generate(&agreement::X25519, &rng).expect("ring broke");
     let my_pub_key = my_priv_key.compute_public_key().expect("ring broke");
     let agreement_packet = ilmp::Agreement::new(my_pub_key.as_ref().into());
-    ilmp::write(write, agreement_packet, encrypt::NoEncrypt::new()).await?;
+    ilmp::write(write, agreement_packet, &encrypt::NoEncrypt::new()).await?;
 
     // receive peer's pub key
     let packet = ilmp::read(read).await?.unwrap();

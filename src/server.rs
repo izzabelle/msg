@@ -6,8 +6,11 @@ use async_std::{
 };
 use futures::io::{ReadHalf, WriteHalf};
 use futures_util::{io::AsyncReadExt, stream::StreamExt};
+use ilmp::encrypt;
+use ilmp::encrypt::Encryption;
 use ilmp::Sendable;
 use lazy_static::lazy_static;
+use orion::aead;
 use std::{collections::HashMap, sync::Mutex};
 use uuid::Uuid;
 
@@ -32,20 +35,30 @@ pub async fn server(port: u16) -> Result<()> {
 
         let (mut read, mut write) = stream.split();
         let stream_id = Uuid::new_v4();
+
         let key = crate::initialize_connection(&mut read, &mut write).await?;
-        println!("{:?}", key);
+        let encryption = encrypt::SymmetricEncrypt::new(key);
+        println!("successfully hardened connection");
 
         WRITE_STREAMS.lock().expect("could not aqcuire lock").insert(stream_id.clone(), write);
-        task::spawn(handle_stream(read, stream_id));
+        task::spawn(handle_stream(read, stream_id, encryption));
     }
 
     Ok(())
 }
 
-async fn handle_stream(mut stream: ReadHalf<TcpStream>, stream_id: Uuid) -> Result<()> {
+async fn handle_stream(
+    mut stream: ReadHalf<TcpStream>,
+    stream_id: Uuid,
+    encryption: encrypt::SymmetricEncrypt,
+) -> Result<()> {
     loop {
         let packet = ilmp::read(&mut stream).await?;
-        if let Some(packet) = packet {
+        if let Some(mut packet) = packet {
+            if packet.encrypt_kind == encrypt::EncryptKind::Symmetric {
+                packet.contents = aead::open(encryption.key().unwrap(), &packet.contents)?;
+            }
+
             let res = match packet.kind {
                 ilmp::PacketKind::Message => ilmp::Message::from_packet(packet),
                 _ => panic!("bad packet"),

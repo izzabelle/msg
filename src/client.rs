@@ -3,6 +3,7 @@ use crate::config::ClientConfig as Config;
 use crate::Result;
 use async_std::net::TcpStream;
 use futures_util::io::AsyncReadExt;
+use ilmp::encrypt;
 
 /// wraps the client
 pub async fn client(port: u16) -> Result<()> {
@@ -13,14 +14,15 @@ pub async fn client(port: u16) -> Result<()> {
     let (mut read, mut write) = stream.split();
 
     let key = crate::initialize_connection(&mut read, &mut write).await?;
-    println!("{:?}", key);
+    let encryption = encrypt::SymmetricEncrypt::new(key);
+    println!("successfully hardened connection");
 
-    /*let message = ilmp::Message::new(
+    let message = ilmp::Message::new(
         "Isabelle".to_owned(),
         "oh god oh fuck this shit actually works".to_owned(),
     );
 
-    ilmp::write(&mut stream, message, encrypt::NoEncrypt::new()).await?;*/
+    ilmp::write(&mut write, message, &encryption).await?;
 
     loop {}
 }

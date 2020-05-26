@@ -345,6 +345,7 @@ dependencies = [
  "crc32fast",
  "futures",
  "futures-util",
+ "orion",
  "ring",
  "serde",
  "serde_json",
