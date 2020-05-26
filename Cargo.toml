@@ -20,3 +20,5 @@ ilmp = { path = "../ilmp"}
 ring = "0.16.13"
 thiserror = "1.0.18"
 orion = "0.15.1"
+termion = "1.5.5"
+tui = "0.9.4"

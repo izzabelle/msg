@@ -26,15 +26,10 @@ async fn main() {
         1337
     };
     match options.server {
-        true => {
-            if let Err(err) = msg::server(port).await {
-                println!("an error occured: {:?}", err);
-            }
-        }
-        false => {
-            if let Err(err) = msg::client(port).await {
-                println!("an error occured: {:?}", err);
-            }
-        }
+        true => async_std::task::spawn(msg::server(port)),
+        false => async_std::task::spawn(msg::client(port)),
+    };
+    loop {
+        async_std::task::yield_now().await;
     }
 }

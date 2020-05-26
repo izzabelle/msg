@@ -2,6 +2,7 @@
 use crate::Result;
 use async_std::{
     net::{TcpListener, TcpStream},
+    sync::Mutex,
     task,
 };
 use futures::io::{ReadHalf, WriteHalf};
@@ -11,7 +12,7 @@ use ilmp::encrypt::Encryption;
 use ilmp::Sendable;
 use lazy_static::lazy_static;
 use orion::aead;
-use std::{collections::HashMap, sync::Mutex};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 lazy_static! {
@@ -23,7 +24,11 @@ lazy_static! {
 pub async fn server(port: u16) -> Result<()> {
     let listener = TcpListener::bind(format!("127.0.0.1:{}", &port)).await?;
 
-    println!("online as server at: {}:{}", listener.local_addr()?.ip(), port);
+    println!(
+        "online as server at: {}:{}",
+        listener.local_addr()?.ip(),
+        port
+    );
 
     let mut incoming = listener.incoming();
 
@@ -40,7 +45,7 @@ pub async fn server(port: u16) -> Result<()> {
         let encryption = encrypt::SymmetricEncrypt::new(key);
         println!("successfully hardened connection");
 
-        WRITE_STREAMS.lock().expect("could not aqcuire lock").insert(stream_id.clone(), write);
+        WRITE_STREAMS.lock().await.insert(stream_id.clone(), write);
         task::spawn(handle_stream(read, stream_id, encryption));
     }
 
@@ -62,31 +67,34 @@ async fn handle_stream(
             let res = match packet.kind {
                 ilmp::PacketKind::Message => ilmp::Message::from_packet(packet),
                 _ => panic!("bad packet"),
-            };
-            println!("{:?}", res);
+            }?;
+            println!("got packet from: {}", &stream_id.as_u128());
+            relay_packet(res, &encryption).await?;
         } else {
             // if no packet was received the stream is closed
             break;
         }
     }
     println!("stream disconnected");
-    WRITE_STREAMS.lock().expect("failed to aqcuire lock").remove(&stream_id);
+    WRITE_STREAMS.lock().await.remove(&stream_id);
     Ok(())
 }
 
-/*async fn relay_packet<T: Clone + Sendable>(packet: T) -> Result<()> {
-    let mut locked_write_streams = WRITE_STREAMS.lock().expect("failed to aqcuire lock");
+async fn relay_packet<T>(packet: T, encryption: &encrypt::SymmetricEncrypt) -> Result<()>
+where
+    T: Clone + Sendable,
+{
+    let mut locked_write_streams = WRITE_STREAMS.lock().await;
     let stream = futures::stream::iter(locked_write_streams.iter_mut());
 
     let packet = &packet;
-    stream.for_each_concurrent(None, |(_, mut stream)| async move {
-        let packet = packet
-            .clone()
-            .to_packet()
-            .expect("failed to convert to packet");
-        // in case any of the writes fail just ignore them
-        let _ = packet.write(&mut stream);
-    });
+    stream
+        .for_each_concurrent(None, |(stream_id, mut stream)| async move {
+            println!("relaying packet to: {}", stream_id.as_u128());
+            let packet = packet.clone();
+            // in case any of the writes fail just ignore them
+            let _ = ilmp::write(&mut stream, packet, encryption).await;
+        })
+        .await;
     Ok(())
 }
-*/
