@@ -45,15 +45,16 @@ pub async fn initialize_connection(
     ilmp::write(write, agreement_packet, &encrypt::NoEncrypt::new()).await?;
 
     // receive peer's pub key
-    let packet = ilmp::read(read).await?.unwrap();
+    let packet = ilmp::read(read, &encrypt::NoEncrypt::new()).await?.unwrap();
     let agreement_packet = ilmp::Agreement::from_packet(packet)?;
     let peer_pub_key =
         agreement::UnparsedPublicKey::new(&agreement::X25519, agreement_packet.public_key);
 
     // generate aead key
     agreement::agree_ephemeral(my_priv_key, &peer_pub_key, MsgError::Ring, |key_material| {
-        let key_material =
-            digest::digest(&digest::SHA256, key_material.as_ref().into()).as_ref().to_vec();
+        let key_material = digest::digest(&digest::SHA256, key_material.as_ref().into())
+            .as_ref()
+            .to_vec();
         Ok(aead::SecretKey::from_slice(&key_material)?)
     })
 }

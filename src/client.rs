@@ -4,12 +4,8 @@ use crate::Result;
 use async_std::{io, net::TcpStream, task};
 use futures::io::{ReadHalf, WriteHalf};
 use futures_util::io::AsyncReadExt;
-use ilmp::{
-    encrypt::{EncryptKind, Encryption, SymmetricEncrypt},
-    Sendable,
-};
+use ilmp::{encrypt::SymmetricEncrypt, Sendable};
 use lazy_static::lazy_static;
-use orion::aead;
 use std::sync::Mutex;
 
 lazy_static! {
@@ -47,12 +43,8 @@ pub async fn outgoing(mut write: WriteHalf<TcpStream>, encryption: SymmetricEncr
 
 pub async fn incoming(mut read: ReadHalf<TcpStream>, encryption: SymmetricEncrypt) -> Result<()> {
     loop {
-        let packet = ilmp::read(&mut read).await?;
-        if let Some(mut packet) = packet {
-            if packet.encrypt_kind == EncryptKind::Symmetric {
-                packet.contents = aead::open(encryption.key().unwrap(), &packet.contents)?;
-            }
-
+        let packet = ilmp::read(&mut read, &encryption).await?;
+        if let Some(packet) = packet {
             let res = match packet.kind {
                 ilmp::PacketKind::Message => ilmp::Message::from_packet(packet),
                 _ => panic!("bad packet"),

@@ -11,7 +11,6 @@ use ilmp::encrypt;
 use ilmp::encrypt::Encryption;
 use ilmp::Sendable;
 use lazy_static::lazy_static;
-use orion::aead;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -58,12 +57,8 @@ async fn handle_stream(
     encryption: encrypt::SymmetricEncrypt,
 ) -> Result<()> {
     loop {
-        let packet = ilmp::read(&mut stream).await?;
-        if let Some(mut packet) = packet {
-            if packet.encrypt_kind == encrypt::EncryptKind::Symmetric {
-                packet.contents = aead::open(encryption.key().unwrap(), &packet.contents)?;
-            }
-
+        let packet = ilmp::read(&mut stream, &encryption).await?;
+        if let Some(packet) = packet {
             let res = match packet.kind {
                 ilmp::PacketKind::Message => ilmp::Message::from_packet(packet),
                 _ => panic!("bad packet"),
@@ -80,9 +75,10 @@ async fn handle_stream(
     Ok(())
 }
 
-async fn relay_packet<T>(packet: T, encryption: &encrypt::SymmetricEncrypt) -> Result<()>
+async fn relay_packet<T, E>(packet: T, encryption: &E) -> Result<()>
 where
     T: Clone + Sendable,
+    E: Encryption,
 {
     let mut locked_write_streams = WRITE_STREAMS.lock().await;
     let stream = futures::stream::iter(locked_write_streams.iter_mut());
