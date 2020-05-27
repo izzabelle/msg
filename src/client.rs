@@ -6,10 +6,8 @@ use futures::io::{ReadHalf, WriteHalf};
 use futures_util::io::AsyncReadExt;
 use ilmp::{encrypt::SymmetricEncrypt, Sendable};
 use lazy_static::lazy_static;
-use std::sync::Mutex;
 
 lazy_static! {
-    static ref MESSAGE_BUFFER: Mutex<Vec<ilmp::Message>> = Mutex::new(Vec::new());
     static ref CONFIG: Config = Config::load().expect("failed to load config");
 }
 
@@ -23,7 +21,7 @@ pub async fn client(port: u16) -> Result<()> {
     );
     let (mut read, mut write) = stream.split();
 
-    let key = crate::initialize_connection(&mut read, &mut write).await?;
+    let key = ilmp::initialize_connection(&mut read, &mut write).await?;
     let encryption = SymmetricEncrypt::new(key);
     println!("successfully hardened connection");
 

@@ -40,7 +40,7 @@ pub async fn server(port: u16) -> Result<()> {
         let (mut read, mut write) = stream.split();
         let stream_id = Uuid::new_v4();
 
-        let key = crate::initialize_connection(&mut read, &mut write).await?;
+        let key = ilmp::initialize_connection(&mut read, &mut write).await?;
         let encryption = encrypt::SymmetricEncrypt::new(key);
         println!("successfully hardened connection");
 
