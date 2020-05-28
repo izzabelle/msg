@@ -1,4 +1,4 @@
-// namespacing
+/*// namespacing
 use crate::Result;
 use async_std::{
     net::{TcpListener, TcpStream},
@@ -94,3 +94,4 @@ where
         .await;
     Ok(())
 }
+*/

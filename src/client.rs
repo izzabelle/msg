@@ -1,4 +1,4 @@
-// namespacing
+/*// namespacing
 use crate::config::ClientConfig as Config;
 use crate::Result;
 use async_std::{io, net::TcpStream, task};
@@ -55,3 +55,4 @@ pub async fn incoming(mut read: ReadHalf<TcpStream>, encryption: SymmetricEncryp
 
     Ok(())
 }
+*/

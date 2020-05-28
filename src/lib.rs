@@ -1,4 +1,4 @@
-// modules
+/*// modules
 mod client;
 mod config;
 mod server;
@@ -25,3 +25,4 @@ pub enum MsgError {
     #[error("orion error")]
     Orion(#[from] orion::errors::UnknownCryptoError),
 }
+*/

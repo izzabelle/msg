@@ -1,4 +1,4 @@
-// namespacing
+/*// namespacing
 use structopt::StructOpt;
 
 // cli options
@@ -33,3 +33,4 @@ async fn main() {
         async_std::task::yield_now().await;
     }
 }
+*/
