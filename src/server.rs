@@ -1,3 +1,22 @@
+// namespacing
+use crate::Result;
+use serde::Deserialize;
+
+// server config
+#[derive(Deserialize)]
+struct ServerConfig {
+    ip: String,
+    port: u32,
+}
+
+pub async fn run() -> Result<()> {
+    // create ip
+    let config: ServerConfig = toml::from_str(&std::fs::read_to_string("./server_config.toml")?)?;
+    let ip = format!("{}:{}", config.ip, config.port);
+
+    Ok(())
+}
+
 /*// namespacing
 use crate::Result;
 use async_std::{

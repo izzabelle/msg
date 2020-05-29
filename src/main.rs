@@ -1,36 +1,47 @@
-/*// namespacing
-use structopt::StructOpt;
+// modules
+//mod client;
+mod server;
 
-// cli options
+// namespacing
+use async_std::task;
+use structopt::StructOpt;
+use thiserror::Error;
+
+type Result<T> = anyhow::Result<T, MsgError>;
+#[derive(Debug, Error)]
+pub enum MsgError {
+    #[error("std::io error")]
+    StdIo(#[from] std::io::Error),
+    #[error("toml error")]
+    Toml(#[from] toml::de::Error),
+}
+
+// cli opts
 #[derive(StructOpt)]
 #[structopt(
-    name = "msg",
-    about = "I have no idea what i'm doing but this is async"
+    name = "i still need to figure that bit out yet",
+    about = "I have no idea what I'm doing"
 )]
 struct Opt {
     /// start the application as a server
     #[structopt(short = "s", long = "server")]
     server: bool,
-
-    /// port, defaults to 1337
-    #[structopt(short = "p", long = "port")]
-    port: Option<u16>,
 }
 
 #[async_std::main]
 async fn main() {
-    let options = Opt::from_args();
-    let port = if let Some(port) = options.port {
-        port
-    } else {
-        1337
-    };
-    match options.server {
-        true => async_std::task::spawn(msg::server(port)),
-        false => async_std::task::spawn(msg::client(port)),
-    };
+    let opts = Opt::from_args();
+
+    match opts.server {
+        true => {
+            if let Err(err) = task::spawn(server::run()).await {
+                println!("error occured: {:?}", err);
+            }
+        }
+        false => {}
+    }
+
     loop {
-        async_std::task::yield_now().await;
+        task::yield_now().await;
     }
 }
-*/

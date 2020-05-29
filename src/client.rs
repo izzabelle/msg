@@ -1,3 +1,14 @@
+// namespacing
+use serde::Deserialize;
+
+// client config
+#[derive(Deserialize)]
+struct ClientConfig {
+    ip: String,
+    port: u32,
+    user: String,
+}
+
 /*// namespacing
 use crate::config::ClientConfig as Config;
 use crate::Result;
