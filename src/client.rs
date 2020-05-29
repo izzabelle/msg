@@ -31,8 +31,12 @@ lazy_static! {
 
 /// wraps the client
 pub async fn client() -> Result<()> {
-    let stream = TcpStream::connect(format!("127.0.0.1:{}", 1337)).await?;
-    println!("connection established to: {}:{}", stream.peer_addr()?.ip(), 1337);
+    let stream = TcpStream::connect(format!("{}:{}", CONFIG.ip, CONFIG.port)).await?;
+    println!(
+        "connection established to: {}:{}",
+        stream.peer_addr()?.ip(),
+        CONFIG.port
+    );
     let (mut read, mut write) = stream.split();
 
     let key = ilmp::initialize_connection(&mut read, &mut write).await?;
