@@ -9,8 +9,15 @@ struct ClientConfig {
     user: String,
 }
 
-/*// namespacing
-use crate::config::ClientConfig as Config;
+impl ClientConfig {
+    fn load() -> Result<Self> {
+        let config: ClientConfig =
+            toml::from_str(&std::fs::read_to_string("./client_config.toml")?)?;
+        Ok(config)
+    }
+}
+
+// namespacing
 use crate::Result;
 use async_std::{io, net::TcpStream, task};
 use futures::io::{ReadHalf, WriteHalf};
@@ -19,17 +26,13 @@ use ilmp::{encrypt::SymmetricEncrypt, Sendable};
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref CONFIG: Config = Config::load().expect("failed to load config");
+    static ref CONFIG: ClientConfig = ClientConfig::load().expect("failed to load config");
 }
 
 /// wraps the client
-pub async fn client(port: u16) -> Result<()> {
-    let stream = TcpStream::connect(format!("127.0.0.1:{}", &port)).await?;
-    println!(
-        "connection established to: {}:{}",
-        stream.peer_addr()?.ip(),
-        port
-    );
+pub async fn client() -> Result<()> {
+    let stream = TcpStream::connect(format!("127.0.0.1:{}", 1337)).await?;
+    println!("connection established to: {}:{}", stream.peer_addr()?.ip(), 1337);
     let (mut read, mut write) = stream.split();
 
     let key = ilmp::initialize_connection(&mut read, &mut write).await?;
@@ -66,4 +69,3 @@ pub async fn incoming(mut read: ReadHalf<TcpStream>, encryption: SymmetricEncryp
 
     Ok(())
 }
-*/

@@ -351,7 +351,6 @@ dependencies = [
 [[package]]
 name = "ilmp"
 version = "0.1.0"
-source = "git+https://github.com/izzabelle/ilmp#9ca9fde47d732aeb4aaa41703976b503a68a5300"
 dependencies = [
  "anyhow",
  "chrono",

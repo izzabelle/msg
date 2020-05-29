@@ -25,24 +25,37 @@ struct ServerConfig {
 /// run the server
 pub async fn run() -> Result<()> {
     // create ip and init tcp listener
+    print!("starting server... ");
     let config: ServerConfig = toml::from_str(&std::fs::read_to_string("./server_config.toml")?)?;
     let ip = format!("{}:{}", config.ip, config.port);
-    let listener = TcpListener::bind(ip).await?;
+    let listener = TcpListener::bind(&ip).await?;
     let mut incoming = listener.incoming();
+    println!("[  Ok   ]");
+
+    println!("server is online at: {} ", ip);
 
     // set up channels and spawn relay_handler task
+    print!("starting relay_handler task... ");
     let (mut sender, receiver) = mpsc::unbounded();
     let _ = task::spawn(relay_handler(receiver));
+    println!("[  Ok   ]");
 
     while let Some(stream) = incoming.next().await {
-        // split streams to read / write
+        // got new stream
         let stream = stream?;
+        let stream_addr = &stream.peer_addr()?.ip();
+        println!("new stream from: {}", stream_addr);
+
+        // split streams to read / write
         let (mut read, mut write) = stream.split();
         let stream_id = Uuid::new_v4();
 
         // initialize connection and gen encryption key
+        print!("initializing connection with {}... ", stream_addr);
         let key = ilmp::initialize_connection(&mut read, &mut write).await?;
         let encryption = SymmetricEncrypt::new(key);
+        println!("[  Ok   ]");
+
         // send write stream and id to relay
         sender
             .send(RelayEvent::PeerConnected {
@@ -53,7 +66,7 @@ pub async fn run() -> Result<()> {
             .await?;
 
         // spawn read_handler task
-        task::spawn(read_handler(read, sender.clone(), encryption, stream_id)).await?;
+        task::spawn(read_handler(read, sender.clone(), encryption, stream_id));
     }
 
     Ok(())
@@ -85,9 +98,16 @@ async fn relay_handler(mut receiver: Receiver<RelayEvent>) -> Result<()> {
                 peers.insert(stream_id, (write, encryption));
             }
             RelayEvent::PeerDisconnected { stream_id } => {
+                println!("peer {} has disconnected", stream_id);
                 peers.remove(&stream_id);
             }
-            RelayEvent::RelayPacket { packet } => todo!(),
+            RelayEvent::RelayPacket { packet } => {
+                for (stream_id, (write, encryption)) in peers.iter_mut() {
+                    print!("relaying packet to {}... ", stream_id);
+                    ilmp::write_packet(write, packet.clone(), encryption).await?;
+                    println!("[  Ok   ]");
+                }
+            }
         }
     }
 
@@ -103,6 +123,7 @@ async fn read_handler(
 ) -> Result<()> {
     // loop through incoming packets until disconnected
     while let Some(packet) = ilmp::read(&mut read, &encryption).await? {
+        println!("got packet from {}", stream_id);
         sender.send(RelayEvent::RelayPacket { packet }).await?;
     }
 
@@ -111,25 +132,3 @@ async fn read_handler(
 
     Ok(())
 }
-
-/*
-async fn relay_packet<T, E>(packet: T, encryption: &E) -> Result<()>
-where
-    T: Clone + Sendable,
-    E: Encryption,
-{
-    let mut locked_write_streams = WRITE_STREAMS.lock().await;
-    let stream = futures::stream::iter(locked_write_streams.iter_mut());
-
-    let packet = &packet;
-    stream
-        .for_each_concurrent(None, |(stream_id, mut stream)| async move {
-            println!("relaying packet to: {}", stream_id.as_u128());
-            let packet = packet.clone();
-            // in case any of the writes fail just ignore them
-            let _ = ilmp::write(&mut stream, packet, encryption).await;
-        })
-        .await;
-    Ok(())
-}
-*/

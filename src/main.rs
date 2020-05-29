@@ -1,5 +1,6 @@
 // modules
 //mod client;
+mod client;
 mod server;
 
 // namespacing
@@ -42,7 +43,11 @@ async fn main() {
                 println!("error occured: {:?}", err);
             }
         }
-        false => {}
+        false => {
+            if let Err(err) = task::spawn(client::client()).await {
+                println!("error occured: {:?}", err);
+            }
+        }
     }
 
     loop {
