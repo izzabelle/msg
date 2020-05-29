@@ -14,6 +14,10 @@ pub enum MsgError {
     StdIo(#[from] std::io::Error),
     #[error("toml error")]
     Toml(#[from] toml::de::Error),
+    #[error("channel send error")]
+    ChannelSendError(#[from] futures_channel::mpsc::SendError),
+    #[error("ilmp error")]
+    Ilmp(#[from] ilmp::IlmpError),
 }
 
 // cli opts
