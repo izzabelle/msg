@@ -37,7 +37,7 @@ pub async fn run() -> Result<()> {
     // set up channels and spawn relay_handler task
     print!("starting relay_handler task... ");
     let (mut sender, receiver) = mpsc::unbounded();
-    let _ = task::spawn(relay_handler(receiver));
+    let _ = task::spawn(relay_handler(receiver, sender.clone()));
     println!("[  Ok   ]");
 
     while let Some(stream) = incoming.next().await {
@@ -75,11 +75,19 @@ pub async fn run() -> Result<()> {
 // used to pass message in channel
 enum RelayEvent {
     // triggered when new client connects
-    PeerConnected { stream_id: Uuid, write: WriteHalf<TcpStream>, encryption: SymmetricEncrypt },
+    PeerConnected {
+        stream_id: Uuid,
+        write: WriteHalf<TcpStream>,
+        encryption: SymmetricEncrypt,
+    },
     // triggered when a client disconnects
-    PeerDisconnected { stream_id: Uuid },
+    PeerDisconnected {
+        stream_id: Uuid,
+    },
     // triggered when a packet needs to be relayed
-    RelayPacket { packet: Packet },
+    RelayPacket {
+        packet: Packet,
+    },
 }
 
 // channel type wrappers
@@ -87,14 +95,21 @@ type Sender<T> = mpsc::UnboundedSender<T>;
 type Receiver<T> = mpsc::UnboundedReceiver<T>;
 
 // handles relay events
-async fn relay_handler(mut receiver: Receiver<RelayEvent>) -> Result<()> {
+async fn relay_handler(
+    mut receiver: Receiver<RelayEvent>,
+    sender: Sender<RelayEvent>,
+) -> Result<()> {
     // used to store connections
     let mut peers: HashMap<Uuid, (WriteHalf<TcpStream>, SymmetricEncrypt)> = HashMap::new();
 
     // loop through incoming events
     while let Some(event) = receiver.next().await {
         match event {
-            RelayEvent::PeerConnected { stream_id, write, encryption } => {
+            RelayEvent::PeerConnected {
+                stream_id,
+                write,
+                encryption,
+            } => {
                 peers.insert(stream_id, (write, encryption));
             }
             RelayEvent::PeerDisconnected { stream_id } => {
@@ -128,7 +143,9 @@ async fn read_handler(
     }
 
     // send disconnect to relay handler
-    sender.send(RelayEvent::PeerDisconnected { stream_id }).await?;
+    sender
+        .send(RelayEvent::PeerDisconnected { stream_id })
+        .await?;
 
     Ok(())
 }

@@ -1,4 +1,6 @@
-// namespacing
+// ngl really don't wanna rewrite this
+
+/*// namespacing
 use serde::Deserialize;
 
 // client config
@@ -73,3 +75,4 @@ pub async fn incoming(mut read: ReadHalf<TcpStream>, encryption: SymmetricEncryp
 
     Ok(())
 }
+*/
